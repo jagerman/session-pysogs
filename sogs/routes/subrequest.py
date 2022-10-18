@@ -91,24 +91,19 @@ def make_subrequest(
         'flask._preserve_context': False,
     }
 
-    try:
-        app.logger.debug(f"Initiating sub-request for {method} {path}")
-        g.user_reauth = user_reauth
-        with app.request_context(subreq_env):
-            response = app.full_dispatch_request()
-        if response.status_code >= 400:
-            app.logger.warning(
-                f"Sub-request for {method} {path} returned status {response.status_code}"
-            )
-        return (
-            response,
-            {
-                k.lower(): v
-                for k, v in response.get_wsgi_headers(subreq_env)
-                if k.lower() != 'content-length'
-            },
+    app.logger.debug(f"Initiating sub-request for {method} {path}")
+    g.user_reauth = user_reauth
+    with app.request_context(subreq_env):
+        response = app.full_dispatch_request()
+    if response.status_code >= 400:
+        app.logger.warning(
+            f"Sub-request for {method} {path} returned status {response.status_code}"
         )
-
-    except Exception:
-        app.logger.warning(f"Sub-request for {method} {path} failed: {traceback.format_exc()}")
-        raise
+    return (
+        response,
+        {
+            k.lower(): v
+            for k, v in response.get_wsgi_headers(subreq_env)
+            if k.lower() != 'content-length'
+        },
+    )
