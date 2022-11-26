@@ -143,6 +143,7 @@ local upgrade_test(name, from='v0.1.10', intermediates=[], pg=false, pg_convert=
       },
     ],
   },
+  /*
 
   debian_pipeline('Debian sid (amd64)', docker_base + 'debian-sid', distro='sid'),
   debian_pipeline('Debian stable (i386)', docker_base + 'debian-stable/i386'),
@@ -194,6 +195,43 @@ local upgrade_test(name, from='v0.1.10', intermediates=[], pg=false, pg_convert=
         commands: [
           'echo "Running on ${DRONE_STAGE_MACHINE}"',
           'PYTHONPATH=. /opt/local/bin/python3 -mpytest -vv --color=yes',
+        ],
+      },
+    ],
+  },
+  */
+
+  // Builds docs and pushes to api.oxen.io (only runs on dev branch)
+  {
+    kind: 'pipeline',
+    type: 'docker',
+    name: '📚 api.oxen.io',
+    platform: { arch: 'amd64' },
+    trigger: {
+      branch: ['autodocs'],
+      event: ['push'],
+      repo: ['jagerman/session-pysogs'],
+    },
+    steps: [
+      {
+        name: 'Build docs',
+        image: docker_base + 'nodejs-lts',
+        pull: 'always',
+        commands: setup_commands() + [
+          'npm install -g docsify docsify-cli docsify-katex prismjs docsify-prism marked strip-indent',
+          'cd docs && ./make-docs.sh',
+        ],
+      },
+      {
+        name: 'Upload to api.oxen.io',
+        image: docker_base + 'debian-stable',
+        environment: {
+          APIDOCS_SSH_KEY: { from_secret: 'APIDOCS_SSH_KEY' },
+        },
+        pull: 'always',
+        commands: [
+          'echo "$APIDOCS_SSH_KEY" >apidocs.key && chmod 600 apidocs.key',
+          'echo -e "-mkdir FIXME\nput -R docs/api FIXME/" | sftp -i apidocs.key -b - -o StrictHostKeyChecking=off"',
         ],
       },
     ],
